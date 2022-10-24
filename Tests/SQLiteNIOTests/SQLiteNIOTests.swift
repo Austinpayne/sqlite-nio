@@ -33,7 +33,7 @@ final class SQLiteNIOTests: XCTestCase {
         defer { try! conn.close().wait() }
 
         let date = Date(timeIntervalSince1970: 42)
-        // This is how a column of type .date is crated when using Vapor’s
+        // This is how a column of type .date is created when using Vapor’s
         // scheme table creation.
         _ = try conn.query(#"CREATE TABLE "test" ("date" DATE NOT NULL);"#).wait()
         _ = try conn.query(#"INSERT INTO test (date) VALUES (?);"#, [date.sqliteData!]).wait()
@@ -55,6 +55,38 @@ final class SQLiteNIOTests: XCTestCase {
         XCTAssertEqual(i, 3)
         XCTAssertEqual(rows[0].column("foo")?.integer, 1)
         XCTAssertEqual(rows[0].columns.filter { $0.name == "foo" }[1].data.integer, 2)
+    }
+
+    func testCreateFunction() throws {
+        let testFunctionName = "testFn"
+        let conn = try SQLiteConnection.open(storage: .memory, threadPool: threadPool, on: eventLoop).wait()
+        defer { try! conn.close().wait() }
+
+        // Function doesn't exist yet
+        XCTAssertThrowsError(try conn.query("SELECT \(testFunctionName)()").wait()) { error in
+            guard let sqliteError = error as? SQLiteError else {
+                XCTFail("Expected an SQLiteError")
+                return
+            }
+            XCTAssertEqual(sqliteError.message, "no such function: \(testFunctionName)")
+        }
+
+        // Create the function
+        try conn.createScalarFunction(named: testFunctionName, argumentCount: 5, { args in
+            XCTAssertEqual(args, [
+                .integer(1),
+                .float(2.0),
+                .text("3"),
+                .blob(ByteBuffer(bytes: [0x04])),
+                .null
+            ])
+            return "ok"
+        }).wait()
+
+        // Pass one of each type to make sure we got decoding right
+        let rows = try conn.query("SELECT \(testFunctionName)(1, 2.0, '3', x'04', NULL) AS result").wait()
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows[0].column("result")?.string, "ok")
     }
 
     var threadPool: NIOThreadPool!
