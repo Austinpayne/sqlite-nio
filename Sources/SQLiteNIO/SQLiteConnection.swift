@@ -116,7 +116,9 @@ public final class SQLiteConnection: SQLiteDatabase {
                 promise.fail(SQLiteError(reason: .cantOpen, message: "Cannot open SQLite database: \(storage)"))
             }
         }
-        return promise.futureResult
+        return promise.futureResult.flatMap { conn in
+            return conn.query("PRAGMA journal_mode = WAL").map { _ in conn }
+        }
     }
 
     init(
