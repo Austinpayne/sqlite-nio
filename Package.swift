@@ -53,6 +53,7 @@ var cSQLiteSettings: [CSetting] = [
     .define("SQLITE_MUTEX_PTHREADS"),
     .define("SQLITE_OMIT_LOAD_EXTENSION"),
     .define("SQLITE_OMIT_LOOKASIDE"),
+    .define("SQLITE_OMIT_SHARED_CACHE"),
     .define("SQLITE_SECURE_DELETE"),
     .define("SQLITE_SYSTEM_MALLOC"),
     .define("SQLITE_USE_URI"),
